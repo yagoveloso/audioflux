@@ -1,11 +1,26 @@
-import Fastify, { FastifyRequest, FastifyReply } from "fastify";
+import Fastify, {
+  FastifyRequest,
+  FastifyReply,
+  preHandlerHookHandler,
+} from "fastify";
 import fastifyMultipart from "@fastify/multipart";
 import fs from "fs";
 import path from "path";
 import ffmpeg from "fluent-ffmpeg";
+import {
+  Http2SecureServer,
+  Http2ServerRequest,
+  Http2ServerResponse,
+} from "http2";
 
 // Cria uma instância do Fastify
-const app = Fastify({ logger: true });
+const app = Fastify({
+  logger: true,
+  http2: true,
+  https: {
+    allowHTTP1: true, // fallback support for HTTP1
+  },
+});
 
 // Registra suporte a arquivos multipart
 app.register(fastifyMultipart, {
@@ -15,7 +30,11 @@ app.register(fastifyMultipart, {
 });
 
 // Middleware para verificação de token
-const verifyToken = async (req: FastifyRequest, reply: FastifyReply) => {
+const verifyToken: preHandlerHookHandler<
+  Http2SecureServer,
+  Http2ServerRequest,
+  Http2ServerResponse
+> = async (req, reply) => {
   const authHeader = req.headers.authorization;
 
   // Verifica se o header de autorização existe e está no formato "Bearer <token>"
@@ -34,6 +53,7 @@ const verifyToken = async (req: FastifyRequest, reply: FastifyReply) => {
   if (token !== validToken) {
     return reply.status(401).send({ error: "Unauthorized: token inválido" });
   }
+  return undefined;
 };
 
 // Define a rota para converter arquivos com verificação de token
